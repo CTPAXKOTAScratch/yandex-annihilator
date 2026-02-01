@@ -115,6 +115,38 @@ if ($serviceCount -gt 0) {
     Write-Host "  No Yandex services found" -ForegroundColor Gray
 }
 
+# 2.5. DELETE YANDEX SERVICES COMPLETELY
+Write-Host "`n[2.5] Deleting Yandex services permanently..." -ForegroundColor Cyan
+$servicesToDelete = Get-Service | Where-Object { $_.DisplayName -like "*Yandex*" }
+$deletedServiceCount = 0
+
+foreach ($service in $servicesToDelete) {
+    try {
+        # Stop the service first
+        Stop-Service $service -Force -ErrorAction SilentlyContinue
+        
+        # Delete the service using sc.exe (more reliable)
+        $output = sc.exe delete $service.Name 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Deleted service: $($service.DisplayName)" -ForegroundColor Red
+            $deletedServiceCount++
+        } else {
+            Write-Host "  Could not delete service: $($service.DisplayName)" -ForegroundColor DarkYellow
+            # Fallback: ensure it's at least disabled
+            Set-Service $service -StartupType Disabled -ErrorAction SilentlyContinue
+        }
+    } catch {
+        Write-Host "  Failed to delete service: $($service.DisplayName)" -ForegroundColor DarkYellow
+    }
+}
+
+if ($deletedServiceCount -gt 0) {
+    Write-Host "  Permanently deleted $deletedServiceCount Yandex service(s)" -ForegroundColor Green
+} else {
+    Write-Host "  No Yandex services to delete" -ForegroundColor Gray
+}
+
 # 3. REMOVE SCHEDULED TASKS
 Write-Host "`n[3] Removing scheduled tasks..." -ForegroundColor Cyan
 $tasks = Get-ScheduledTask | Where-Object { $_.TaskName -like "*yandex*" -or $_.Description -like "*yandex*" }
